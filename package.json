@@ -1,0 +1,33 @@
+{
+  "name": "paycore",
+  "version": "1.0.0",
+  "description": "PayCore payment engine backend",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "db:init": "tsx scripts/dbInit.ts",
+    "seed": "tsx scripts/seed.ts",
+    "verify": "tsx scripts/verify.ts",
+    "sim": "tsx scripts/simulateFraud.ts"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "pg": "^8.11.3",
+    "amqplib": "^0.10.3",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "tsx": "^4.7.0",
+    "@types/node": "^20.11.5",
+    "@types/express": "^4.17.21",
+    "@types/pg": "^8.11.0",
+    "@types/amqplib": "^0.10.4",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.5"
+  }
+}
