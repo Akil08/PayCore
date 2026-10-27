@@ -14,20 +14,20 @@ async function main(): Promise<void> {
 
   try {
     await client.connect();
-
-    const analystPassword =
-      process.env.SEED_ANALYST_PASSWORD || "Analyst#12345";
-    const userPassword = process.env.SEED_USER_PASSWORD || "User#12345";
+    
+    const analystPassword = "Analyst#12345";
+    const userPassword = "User#12345";
 
     const analystHash = await bcrypt.hash(analystPassword, 10);
     const userHash = await bcrypt.hash(userPassword, 10);
 
     // Insert analyst
+    // Insert analyst (FORCED UPDATE to fix any old broken passwords)
     await client.query(
       `
       INSERT INTO users (email, password_hash, role)
       VALUES ('analyst@paycore.dev', $1, 'analyst')
-      ON CONFLICT (email) DO NOTHING
+      ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash
     `,
       [analystHash],
     );

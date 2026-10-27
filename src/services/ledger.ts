@@ -15,6 +15,7 @@ export async function moveMoney(
   const { fromAccountId, toAccountId, amount, transferId, reason } = args;
 
   // 1. Insert the two ledger rows (from: -amount, to: +amount)
+  
   await client.query(
     `INSERT INTO ledger (account_id, amount, transfer_id, reason)
      VALUES ($1, $2, $3, $4), ($5, $6, $7, $8)`,
@@ -26,7 +27,7 @@ export async function moveMoney(
 
   // 2. Update balances only for non-system accounts
   const isSystem = (id: string) => id === EXTERNAL_BANK_ID || id === IN_TRANSIT_ID;
-
+  
   if (!isSystem(fromAccountId)) {
     const res = await client.query(
       `UPDATE accounts SET balance = balance - $1 WHERE id = $2 AND balance >= $1`,

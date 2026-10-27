@@ -15,6 +15,8 @@ export function recordLatency(name: 'transfer_post', ms: number): void {
   latencyIndex = (latencyIndex + 1) % MAX_LATENCY_SAMPLES;
 }
 
+
+
 export function incProcessed(queue: string): void {
   if (!processedTimestamps[queue]) {
     processedTimestamps[queue] = [];

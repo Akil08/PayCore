@@ -5,6 +5,8 @@ import { pool } from "./db.js";
 import { config } from "./config.js";
 import { wrap } from "./http/wrap.js";
 import { AppError } from "./http/errors.js";
+import authRouter from "./routes/auth.js";
+import { requireAuth } from "./http/auth.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,9 +30,20 @@ app.get(
 );
 
 // === ROUTE MOUNTS START ===
+app.use("/api/auth", authRouter);
 // Later sessions will add routes here, e.g.:
-// app.use('/api/auth', authRoutes);
+// app.use('/api/accounts', accountsRouter);
 // === ROUTE MOUNTS END ===
+
+
+
+
+
+
+
+
+
+
 
 // Central error middleware
 app.use(
@@ -46,14 +59,12 @@ app.use(
         .json({ error: { code: err.code, message: err.message } });
     } else {
       console.error("Unexpected error:", err);
-      res
-        .status(500)
-        .json({
-          error: {
-            code: "internal_error",
-            message: "An unexpected error occurred",
-          },
-        });
+      res.status(500).json({
+        error: {
+          code: "internal_error",
+          message: "An unexpected error occurred",
+        },
+      });
     }
   },
 );
