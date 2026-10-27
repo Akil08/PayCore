@@ -1,5 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+
 CREATE TABLE IF NOT EXISTS users (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email         text UNIQUE NOT NULL,
@@ -17,6 +18,7 @@ CREATE TABLE IF NOT EXISTS accounts (
   created_at timestamptz NOT NULL DEFAULT now(),
   CHECK (type <> 'user' OR balance >= 0)
 );
+
 
 INSERT INTO accounts (id, user_id, type, balance, status) VALUES
   ('00000000-0000-0000-0000-000000000001', NULL, 'external_bank', 0, 'active'),
