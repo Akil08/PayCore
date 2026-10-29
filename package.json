@@ -10,7 +10,8 @@
     "db:init": "tsx scripts/dbInit.ts",
     "seed": "tsx scripts/seed.ts",
     "verify": "tsx scripts/verify.ts",
-    "sim": "tsx scripts/simulateFraud.ts"
+    "sim": "tsx scripts/simulateFraud.ts",
+    "recon": "tsx scripts/recon.ts"
   },
   "dependencies": {
     "express": "^4.18.2",
