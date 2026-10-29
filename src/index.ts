@@ -7,6 +7,7 @@ import { wrap } from "./http/wrap.js";
 import { AppError } from "./http/errors.js";
 import authRouter from "./routes/auth.js";
 import { requireAuth } from "./http/auth.js";
+import accountsRouter from "./routes/accounts.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,6 +32,7 @@ app.get(
 
 // === ROUTE MOUNTS START ===
 app.use("/api/auth", authRouter);
+app.use("/api/accounts", accountsRouter);
 // Later sessions will add routes here, e.g.:
 // app.use('/api/accounts', accountsRouter);
 // === ROUTE MOUNTS END ===

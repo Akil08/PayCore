@@ -40,6 +40,16 @@ router.post(
     let accountId!: string;
 
     try {
+      // what client means in this context ?  
+      // In this context, "client" refers to a database client that is used to execute SQL 
+      // queries within a transaction. The `withTx` function likely manages the transaction 
+      // lifecycle, providing a client that can be used to perform multiple 
+      // database operations atomically. If any operation fails, 
+      // the transaction can be rolled back to maintain data integrity.
+      // is appdbcontext of c# is similar to this client ?
+      // Yes, the concept of a "client" in this context is somewhat similar to the `DbContext` 
+      // in C#. 
+      // Both serve as an abstraction for interacting with the database.
       await withTx(async (client) => {
         // 1. Create user
         const userRes = await client.query(

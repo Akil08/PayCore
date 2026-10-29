@@ -3,9 +3,19 @@ import { moveMoney } from "../src/services/ledger.js";
 import { InsufficientFundsError } from "../src/http/errors.js";
 import { EXTERNAL_BANK_ID } from "../src/config.js";
 
+// Dedicated ID to isolate this test's ledger entries
+const SMOKE_TEST_TRANSFER_ID = "00000000-0000-0000-0000-smoketest00001";
+
 async function main(): Promise<void> {
   try {
-    // 1. Setup a temporary test account for the smoke test
+    // 1. Capture global ledger sum BEFORE test
+    const initialSumRes = await pool.query(
+      "SELECT SUM(amount) AS total FROM ledger",
+    );
+    const initialSum = parseInt(initialSumRes.rows[0].total || "0", 10);
+    console.log(`Initial global ledger sum: ${initialSum}`);
+
+    // 2. Setup a temporary test account
     const testUserId = "11111111-1111-1111-1111-111111111111";
     const testAccountId = "22222222-2222-2222-2222-222222222222";
 
@@ -18,13 +28,13 @@ async function main(): Promise<void> {
       [testAccountId, testUserId],
     );
 
-    console.log("--- Smoke Test 1: Deposit 5000 paisa ---");
+    console.log("\n--- Smoke Test 1: Deposit 5000 paisa ---");
     await withTx(async (client) => {
       await moveMoney(client, {
         fromAccountId: EXTERNAL_BANK_ID,
         toAccountId: testAccountId,
         amount: 5000,
-        transferId: null,
+        transferId: SMOKE_TEST_TRANSFER_ID, // Isolated
         reason: "deposit",
       });
     });
@@ -54,7 +64,7 @@ async function main(): Promise<void> {
           fromAccountId: testAccountId,
           toAccountId: EXTERNAL_BANK_ID,
           amount: 10000,
-          transferId: null,
+          transferId: SMOKE_TEST_TRANSFER_ID, // Isolated
           reason: "withdrawal",
         });
       });
@@ -90,14 +100,28 @@ async function main(): Promise<void> {
       );
     }
 
-    // Cleanup test data
-    await pool.query(`DELETE FROM ledger WHERE account_id = $1`, [
-      testAccountId,
+    // 3. SAFE Cleanup: Delete ONLY rows with our dedicated transfer_id
+    console.log("\n--- Cleaning up test data safely ---");
+    await pool.query(`DELETE FROM ledger WHERE transfer_id = $1`, [
+      SMOKE_TEST_TRANSFER_ID,
     ]);
     await pool.query(`DELETE FROM accounts WHERE id = $1`, [testAccountId]);
     await pool.query(`DELETE FROM users WHERE id = $1`, [testUserId]);
 
-    console.log("\n✅ All smoke tests passed!");
+    // 4. Verify global ledger sum is unchanged
+    const finalSumRes = await pool.query(
+      "SELECT SUM(amount) AS total FROM ledger",
+    );
+    const finalSum = parseInt(finalSumRes.rows[0].total || "0", 10);
+    console.log(`Final global ledger sum: ${finalSum}`);
+
+    if (initialSum !== finalSum) {
+      throw new Error(
+        `Regression failed: Global ledger sum changed from ${initialSum} to ${finalSum}`,
+      );
+    }
+
+    console.log("\n✅ All smoke tests passed and cleaned up safely!");
   } catch (err) {
     console.error("❌ Smoke test failed:", err);
     process.exit(1);
