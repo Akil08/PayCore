@@ -9,6 +9,7 @@ import { IN_TRANSIT_ID } from "../config.js";
 import { recordLatency } from "./metrics.js";
 
 class ConcurrentDebitError extends Error {}
+let transferId: string;
 
 // FIX: Widened 'status' to 'string' to safely accommodate replays of 'settled' or 'expired' transfers
 export async function createTransfer(

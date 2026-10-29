@@ -9,6 +9,7 @@ import authRouter from "./routes/auth.js";
 import { requireAuth } from "./http/auth.js";
 import accountsRouter from "./routes/accounts.js";
 import transfersRouter from "./routes/transfers.js";
+import { startAllWorkers } from "./workers/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,18 +37,8 @@ app.use("/api/auth", authRouter);
 app.use("/api/accounts", accountsRouter);
 app.use("/api/transfers", transfersRouter);
 // Later sessions will add routes here, e.g.:
-// app.use('/api/accounts', accountsRouter);
+// app.use('/api/admin', adminRouter);
 // === ROUTE MOUNTS END ===
-
-
-
-
-
-
-
-
-
-
 
 // Central error middleware
 app.use(
@@ -78,19 +69,12 @@ app.listen(config.PORT, () => {
 });
 
 // === WORKERS START ===
-// if (config.RUN_WORKERS) {
-//   startAllWorkers(); // Will be implemented in Session 6
-// }
+// does this measn worker enable ?
+// Check if workers should be started based on the configuration
+if (config.RUN_WORKERS) {
+  console.log("Starting background workers...");
+  void startAllWorkers().catch((err) => {
+    console.error("Failed to start background workers:", err);
+  });
+}
 // === WORKERS END ===
-
-
-
-
-
-
-
-
-
-
-
-
