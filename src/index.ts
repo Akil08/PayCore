@@ -8,6 +8,7 @@ import { AppError } from "./http/errors.js";
 import authRouter from "./routes/auth.js";
 import { requireAuth } from "./http/auth.js";
 import accountsRouter from "./routes/accounts.js";
+import transfersRouter from "./routes/transfers.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,6 +34,7 @@ app.get(
 // === ROUTE MOUNTS START ===
 app.use("/api/auth", authRouter);
 app.use("/api/accounts", accountsRouter);
+app.use("/api/transfers", transfersRouter);
 // Later sessions will add routes here, e.g.:
 // app.use('/api/accounts', accountsRouter);
 // === ROUTE MOUNTS END ===
@@ -80,3 +82,15 @@ app.listen(config.PORT, () => {
 //   startAllWorkers(); // Will be implemented in Session 6
 // }
 // === WORKERS END ===
+
+
+
+
+
+
+
+
+
+
+
+

@@ -2,6 +2,8 @@ import "dotenv/config";
 
 export const EXTERNAL_BANK_ID = "00000000-0000-0000-0000-000000000001";
 export const IN_TRANSIT_ID = "00000000-0000-0000-0000-000000000002";
+export const TRANSFER_MIN_AMOUNT = 1000;
+export const TRANSFER_MAX_AMOUNT = 10000000;
 
 const getEnv = (key: string, fallback?: string): string => {
   const value = process.env[key];
