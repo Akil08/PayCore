@@ -8,6 +8,98 @@ import { pool } from "../db.js";
 
 const router = Router();
 
+/**
+ * @openapi
+ * /transfers:
+ *   post:
+ *     tags:
+ *       - Transfers
+ *     summary: Initiate a money transfer
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: header
+ *         name: Idempotency-Key
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Unique key to ensure idempotency
+ *       - in: header
+ *         name: X-Device-Id
+ *         required: false
+ *         schema:
+ *           type: string
+ *           maxLength: 64
+ *         description: Optional device identifier for fraud graph
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - receiver_account_id
+ *               - amount
+ *             properties:
+ *               receiver_account_id:
+ *                 type: string
+ *                 format: uuid
+ *               amount:
+ *                 type: integer
+ *                 description: Amount in paisa (min 1000, max 10000000)
+ *                 example: 50000
+ *     responses:
+ *       201:
+ *         description: Transfer approved and held
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 transfer_id:
+ *                   type: string
+ *                   format: uuid
+ *                 status:
+ *                   type: string
+ *                   example: held
+ *       200:
+ *         description: Transfer declined or replayed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 transfer_id:
+ *                   type: string
+ *                   format: uuid
+ *                 status:
+ *                   type: string
+ *                   example: declined
+ *                 reason:
+ *                   type: string
+ *                   nullable: true
+ *                 replayed:
+ *                   type: boolean
+ *       400:
+ *         description: Validation error (missing key, invalid amount, self-transfer)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Analysts cannot initiate transfers
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       409:
+ *         description: Idempotency conflict (same key, different body)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+
 router.post(
   "/",
   requireAuth,
@@ -111,6 +203,62 @@ router.post(
   }),
 );
 
+/**
+ * @openapi
+ * /transfers/{id}:
+ *   get:
+ *     tags:
+ *       - Transfers
+ *     summary: Get details of a specific transfer
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Transfer ID
+ *     responses:
+ *       200:
+ *         description: Transfer details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   format: uuid
+ *                 sender_account_id:
+ *                   type: string
+ *                   format: uuid
+ *                 receiver_account_id:
+ *                   type: string
+ *                   format: uuid
+ *                 amount:
+ *                   type: integer
+ *                 status:
+ *                   type: string
+ *                   enum: [held, settled, expired, declined]
+ *                 failed_check:
+ *                   type: string
+ *                   nullable: true
+ *                 created_at:
+ *                   type: string
+ *                   format: date-time
+ *                 updated_at:
+ *                   type: string
+ *                   format: date-time
+ *       404:
+ *         description: Transfer not found or access denied
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+
 router.get(
   "/:id",
   requireAuth,
@@ -133,6 +281,63 @@ router.get(
     res.json(result.rows[0]);
   }),
 );
+
+/**
+ * @openapi
+ * /transfers:
+ *   get:
+ *     tags:
+ *       - Transfers
+ *     summary: List transfers (sent and received)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number (1-based)
+ *     responses:
+ *       200:
+ *         description: List of transfers retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                       sender_account_id:
+ *                         type: string
+ *                         format: uuid
+ *                       receiver_account_id:
+ *                         type: string
+ *                         format: uuid
+ *                       amount:
+ *                         type: integer
+ *                       status:
+ *                         type: string
+ *                       failed_check:
+ *                         type: string
+ *                         nullable: true
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                       updated_at:
+ *                         type: string
+ *                         format: date-time
+ *                 page:
+ *                   type: integer
+ *                 has_more:
+ *                   type: boolean
+ */
 
 router.get(
   "/",

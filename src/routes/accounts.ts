@@ -10,6 +10,48 @@ import {pool} from "../db.js";
 
 const router = Router();
 
+/**
+ * @openapi
+ * /accounts/me:
+ *   get:
+ *     tags:
+ *       - Accounts
+ *     summary: Get current user's account details
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Account details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 account_id:
+ *                   type: string
+ *                   format: uuid
+ *                 email:
+ *                   type: string
+ *                 balance:
+ *                   type: integer
+ *                   description: Balance in paisa
+ *                 status:
+ *                   type: string
+ *                   enum: [active, frozen, blacklisted]
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Account not found (e.g., analyst)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+
 router.get(
   "/me",
   requireAuth,
@@ -31,6 +73,50 @@ router.get(
     });
   }),
 );
+
+/**
+ * @openapi
+ * /accounts/lookup:
+ *   get:
+ *     tags:
+ *       - Accounts
+ *     summary: Lookup account ID by email
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: email
+ *         description: Email address to lookup
+ *     responses:
+ *       200:
+ *         description: Account found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 account_id:
+ *                   type: string
+ *                   format: uuid
+ *                 email:
+ *                   type: string
+ *       400:
+ *         description: Missing email parameter
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Account not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 
 router.get(
   "/lookup",
@@ -54,6 +140,54 @@ router.get(
     });
   }),
 );
+
+
+/**
+ * @openapi
+ * /accounts/deposit:
+ *   post:
+ *     tags:
+ *       - Accounts
+ *     summary: Deposit money into wallet
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - amount
+ *             properties:
+ *               amount:
+ *                 type: integer
+ *                 description: Amount in paisa (min 1000, max 10000000)
+ *                 example: 100000
+ *     responses:
+ *       200:
+ *         description: Deposit successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 balance:
+ *                   type: integer
+ *                   description: New balance in paisa
+ *       400:
+ *         description: Invalid amount
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Account is not active
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 
 router.post(
   "/deposit",
@@ -95,6 +229,53 @@ router.post(
     res.json({ balance: updatedAccount.balance });
   }),
 );
+
+/**
+ * @openapi
+ * /accounts/withdraw:
+ *   post:
+ *     tags:
+ *       - Accounts
+ *     summary: Withdraw money from wallet
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - amount
+ *             properties:
+ *               amount:
+ *                 type: integer
+ *                 description: Amount in paisa (min 1000, max 10000000)
+ *                 example: 50000
+ *     responses:
+ *       200:
+ *         description: Withdrawal successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 balance:
+ *                   type: integer
+ *                   description: New balance in paisa
+ *       400:
+ *         description: Invalid amount or insufficient balance
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Account is not active
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 
 router.post(
   "/withdraw",
@@ -148,6 +329,60 @@ router.post(
     res.json({ balance: updatedAccount.balance });
   }),
 );
+
+/**
+ * @openapi
+ * /accounts/me/history:
+ *   get:
+ *     tags:
+ *       - Accounts
+ *     summary: Get ledger history for current account
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number (1-based)
+ *     responses:
+ *       200:
+ *         description: Ledger history retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       amount:
+ *                         type: integer
+ *                       reason:
+ *                         type: string
+ *                       transfer_id:
+ *                         type: string
+ *                         format: uuid
+ *                         nullable: true
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                 page:
+ *                   type: integer
+ *                 has_more:
+ *                   type: boolean
+ *       400:
+ *         description: Invalid page number
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 
 router.get(
   "/me/history",

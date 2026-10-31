@@ -6,10 +6,11 @@ import { config } from "./config.js";
 import { wrap } from "./http/wrap.js";
 import { AppError } from "./http/errors.js";
 import authRouter from "./routes/auth.js";
-import { requireAuth } from "./http/auth.js";
 import accountsRouter from "./routes/accounts.js";
 import transfersRouter from "./routes/transfers.js";
+import { adminRouter } from "./routes/admin.js";
 import { startAllWorkers } from "./workers/index.js";
+import { swaggerRouter } from "./swagger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,6 +19,9 @@ const app = express();
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "../public")));
+
+// Swagger UI
+app.use("/api-docs", swaggerRouter);
 
 app.get(
   "/health",
@@ -36,8 +40,7 @@ app.get(
 app.use("/api/auth", authRouter);
 app.use("/api/accounts", accountsRouter);
 app.use("/api/transfers", transfersRouter);
-// Later sessions will add routes here, e.g.:
-// app.use('/api/admin', adminRouter);
+app.use("/api/admin", adminRouter);
 // === ROUTE MOUNTS END ===
 
 // Central error middleware
