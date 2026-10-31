@@ -1,58 +1,127 @@
 import { pool } from "../src/db.js";
-import { EXTERNAL_BANK_ID, IN_TRANSIT_ID } from "../src/config.js";
+import { IN_TRANSIT_ID } from "../src/config.js";
 
 async function main(): Promise<void> {
   console.log("🔍 Running PayCore Invariant Verification...\n");
+
   let passed = true;
 
+  function report(name: string, rows: any[]): void {
+    if (rows.length > 0) {
+      console.error(`❌ FAIL: ${name}`);
+      console.error(rows);
+      passed = false;
+    } else {
+      console.log(`✅ PASS: ${name}`);
+    }
+  }
+
   try {
-    // Invariant 1: Global ledger sum must be exactly 0
-    const globalSumRes = await pool.query("SELECT SUM(amount) AS total FROM ledger");
-    const globalSum = parseInt(globalSumRes.rows[0].total || "0", 10);
-    if (globalSum !== 0) {
+    // 1. Global ledger sum must equal zero
+    const globalSumRes = await pool.query(`
+      SELECT COALESCE(SUM(amount), 0) AS total
+      FROM ledger
+    `);
+
+    const globalSum = BigInt(globalSumRes.rows[0].total);
+
+    if (globalSum !== 0n) {
       console.error(`❌ FAIL: Global ledger sum is ${globalSum}, expected 0.`);
-      console.error("   This indicates orphaned ledger entries (e.g., from manual DB edits or buggy test scripts).");
       passed = false;
     } else {
       console.log("✅ PASS: Global ledger sum is 0.");
     }
 
-    // Invariant 2: Every user account balance must match its ledger sum
-    const balanceCheckRes = await pool.query(`
-      SELECT a.id, a.balance AS stored_balance, COALESCE(SUM(l.amount), 0) AS ledger_sum
+    // 2. Every user account balance must match its ledger sum
+    const balanceRes = await pool.query(`
+      SELECT
+        a.id,
+        a.balance AS stored_balance,
+        COALESCE(SUM(l.amount), 0) AS ledger_sum
       FROM accounts a
-      LEFT JOIN ledger l ON a.id = l.account_id
+      LEFT JOIN ledger l ON l.account_id = a.id
       WHERE a.type = 'user'
       GROUP BY a.id, a.balance
       HAVING a.balance <> COALESCE(SUM(l.amount), 0)
     `);
-    
-    if (balanceCheckRes.rows.length > 0) {
-      console.error("❌ FAIL: Account balances do not match ledger sums:");
-      console.error(balanceCheckRes.rows);
-      passed = false;
-    } else {
-      console.log("✅ PASS: All user account balances match their ledger sums.");
-    }
 
-    // Invariant 3: No user balance can be negative (enforced by DB CHECK, but good to verify)
-    const negativeBalanceRes = await pool.query(
-      "SELECT id, balance FROM accounts WHERE type = 'user' AND balance < 0"
+    report("User balances match their ledger sums.", balanceRes.rows);
+
+    // 3. No user account can have a negative balance
+    const negativeRes = await pool.query(`
+      SELECT id, balance
+      FROM accounts
+      WHERE type = 'user' AND balance < 0
+    `);
+
+    report("No user account has a negative balance.", negativeRes.rows);
+
+    // 4. In-transit ledger total must equal held transfer total
+    const transitRes = await pool.query(
+      `
+      WITH ledger_total AS (
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM ledger
+        WHERE account_id = $1
+      ),
+      held_total AS (
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transfers
+        WHERE status = 'held'
+      )
+      SELECT
+        ledger_total.total AS ledger_total,
+        held_total.total AS held_total
+      FROM ledger_total, held_total
+      WHERE ledger_total.total <> held_total.total
+    `,
+      [IN_TRANSIT_ID],
     );
-    if (negativeBalanceRes.rows.length > 0) {
-      console.error("❌ FAIL: Found accounts with negative balances:");
-      console.error(negativeBalanceRes.rows);
-      passed = false;
-    } else {
-      console.log("✅ PASS: No user accounts have negative balances.");
+
+    report("In-transit ledger matches held transfers.", transitRes.rows);
+
+    // 5. No transfer can have duplicate settle or refund pairs (using PayCore 'reason' column and 'settle' value)
+    const duplicateRes = await pool.query(`
+      SELECT
+        transfer_id,
+        reason,
+        COUNT(*) AS pair_count
+      FROM ledger
+      WHERE transfer_id IS NOT NULL
+        AND reason IN ('settle', 'refund')
+      GROUP BY transfer_id, reason
+      HAVING COUNT(*) > 2
+    `);
+
+    report("No transfer has duplicate settle/refund pairs.", duplicateRes.rows);
+
+    // 6. A transfer cannot be both settled and refunded
+    const conflictingRes = await pool.query(`
+      SELECT
+        transfer_id,
+        COUNT(DISTINCT reason) AS outcome_count
+      FROM ledger
+      WHERE transfer_id IS NOT NULL
+        AND reason IN ('settle', 'refund')
+      GROUP BY transfer_id
+      HAVING COUNT(DISTINCT reason) > 1
+    `);
+
+    report("No transfer is both settled and refunded.", conflictingRes.rows);
+
+    console.log(
+      "\n" +
+        (passed
+          ? "🎉 All invariants PASSED."
+          : "⚠️ Verification FAILED. Check errors above."),
+    );
+
+    if (!passed) {
+      process.exitCode = 1;
     }
-
-    console.log("\n" + (passed ? "🎉 All invariants PASSED." : "⚠️ Verification FAILED. Check errors above."));
-    process.exit(passed ? 0 : 1);
-
   } catch (err) {
     console.error("❌ Verification script crashed:", err);
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
     await pool.end();
   }

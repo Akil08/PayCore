@@ -69,8 +69,6 @@ app.listen(config.PORT, () => {
 });
 
 // === WORKERS START ===
-// does this measn worker enable ?
-// Check if workers should be started based on the configuration
 if (config.RUN_WORKERS) {
   console.log("Starting background workers...");
   void startAllWorkers().catch((err) => {

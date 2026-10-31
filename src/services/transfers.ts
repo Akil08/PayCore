@@ -8,10 +8,12 @@ import { InsufficientFundsError, AppError } from "../http/errors.js";
 import { IN_TRANSIT_ID } from "../config.js";
 import { recordLatency } from "./metrics.js";
 
+
 class ConcurrentDebitError extends Error {}
 let transferId: string;
 
-// FIX: Widened 'status' to 'string' to safely accommodate replays of 'settled' or 'expired' transfers
+// FIX: Widened 'status' to 'string' to safely accommodate replays of 'settled' or 
+// 'expired' transfers
 export async function createTransfer(
   senderAccountId: string,
   receiverAccountId: string,
@@ -24,6 +26,8 @@ export async function createTransfer(
   replayed?: boolean;
   failedCheck?: string;
 }> {
+  
+
   const startTime = Date.now();
   const payloadHash = crypto
     .createHash("sha256")

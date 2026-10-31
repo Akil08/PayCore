@@ -12,6 +12,8 @@ router.post(
   "/",
   requireAuth,
   wrap(async (req: Request, res: Response) => {
+    // is not this idempontey key is sent by client ? jsut say yes or no ?
+    // Yes, the Idempotency-Key is sent by the client in the request headers.
     const idempotencyKey = req.headers["idempotency-key"] as string;
     if (!idempotencyKey) {
       throw new AppError(
