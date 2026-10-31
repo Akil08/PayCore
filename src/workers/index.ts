@@ -3,6 +3,8 @@ import { startOutboxPublisher } from "./outboxPublisher.js";
 import { startSettlementConsumer } from "./settlementConsumer.js";
 import { startHoldExpiry } from "./holdExpiry.js";
 import { startReconJob } from "./reconJob.js";
+import { startGraphConsumer } from "./graphConsumer.js";
+import { channel } from "process";
 
 export async function startAllWorkers(): Promise<void> {
   if (process.env.RUN_WORKERS !== "true") {
@@ -14,6 +16,7 @@ export async function startAllWorkers(): Promise<void> {
 
   await startOutboxPublisher();
   await startSettlementConsumer();
-  startHoldExpiry();
-  startReconJob();
+  await startGraphConsumer();
+  await startHoldExpiry();
+  await startReconJob();
 }
