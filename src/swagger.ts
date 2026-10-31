@@ -10,10 +10,16 @@ const options: swaggerJsdoc.Options = {
       version: "1.0.0",
       description: "PayCore payment engine backend API documentation",
     },
+
+    // Inside src/swagger.ts, find the `servers` array and update it to this:
     servers: [
       {
         url: "http://localhost:3000/api",
         description: "Local development server",
+      },
+      {
+        url: "https://paycore-lvs4.onrender.com/api",
+        description: "Render production server",
       },
     ],
     components: {
