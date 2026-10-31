@@ -1,0 +1,60 @@
+{
+  "timestamp": "2026-10-31T08:29:08.784Z",
+  "total_accounts": 31,
+  "fraud_accounts": 10,
+  "legit_accounts": 21,
+  "metrics": {
+    "freeze": {
+      "tp": 4,
+      "fp": 0,
+      "fn": 6,
+      "tn": 21,
+      "precision": 1,
+      "recall": 0.4,
+      "fpr": 0
+    },
+    "signal": {
+      "tp": 8,
+      "fp": 1,
+      "fn": 2,
+      "tn": 20,
+      "precision": 0.8888888888888888,
+      "recall": 0.8,
+      "fpr": 0.047619047619047616
+    }
+  },
+  "scenario_execution_results": {
+    "cluster_setup": true,
+    "A_cluster_velocity": true,
+    "B_cluster_declines": true,
+    "C_cluster_legit": true,
+    "D_velocity_only": true,
+    "E_amount_anomaly": false,
+    "F_declines_only": true,
+    "G_pure_legit": true
+  },
+  "scenario_detection_results": {
+    "A_cluster_velocity": true,
+    "B_cluster_declines": true,
+    "C_cluster_legit": true,
+    "D_velocity_only": true,
+    "E_amount_anomaly": false,
+    "F_declines_only": true,
+    "G_pure_legit": true
+  },
+  "execution_passed": false,
+  "detection_passed": false,
+  "scenarios_passed": false,
+  "drain_passed": false,
+  "cluster_setup_passed": true,
+  "integrity": {
+    "passed": true,
+    "errors": []
+  },
+  "overall_passed": false,
+  "notes": [
+    "Small simulated evaluation (30 accounts). One false positive changes FPR by ~4.76 percentage points.",
+    "Scenario C is a deliberate signal false-positive (legitimate account in flagged cluster) but true-negative for freeze.",
+    "Drain check is a best-effort database verification, not a guarantee that RabbitMQ queues are empty."
+  ]
+}

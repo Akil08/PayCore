@@ -1,12 +1,11 @@
-
 import {
   connect,
   type ChannelModel,
   type Channel,
   type ConfirmChannel,
-} from 'amqplib';
+} from "amqplib";
 
-import { assertTopology } from './topology.js';
+import { assertTopology } from "./topology.js";
 
 let connection: ChannelModel | null = null;
 let confirmChannel: ConfirmChannel | null = null;
@@ -18,20 +17,70 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 const INITIAL_RECONNECT_DELAY_MS = 2_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
 
+// Registry for reconnect callbacks
+const reconnectCallbacks: Array<() => Promise<void>> = [];
+
+export function onReconnect(callback: () => Promise<void>): void {
+  reconnectCallbacks.push(callback);
+}
+
 export async function getConfirmChannel(): Promise<ConfirmChannel> {
   if (!confirmChannel) {
-    throw new Error('RabbitMQ confirm channel is not available');
+    throw new Error("RabbitMQ confirm channel is not available");
   }
-
   return confirmChannel;
 }
 
 export async function getConsumeChannel(): Promise<Channel> {
   if (!consumeChannel) {
-    throw new Error('RabbitMQ consumer channel is not available');
+    throw new Error("RabbitMQ consumer channel is not available");
+  }
+  return consumeChannel;
+}
+
+export function invalidateConfirmChannel(
+  failedChannel: ConfirmChannel,
+  reason: string,
+): void {
+  if (confirmChannel !== failedChannel || !connection) {
+    return;
   }
 
-  return consumeChannel;
+  invalidateConnection(connection, reason);
+}
+
+function invalidateConsumerChannel(
+  failedChannel: Channel,
+  reason: string,
+): void {
+  if (consumeChannel !== failedChannel || !connection) {
+    return;
+  }
+
+  invalidateConnection(connection, reason);
+}
+
+function invalidateConnection(
+  failedConnection: ChannelModel,
+  reason: string,
+): void {
+  if (connection !== failedConnection) {
+    return;
+  }
+
+  connection = null;
+  confirmChannel = null;
+  consumeChannel = null;
+
+  console.warn(`RabbitMQ channel invalidated: ${reason}`);
+  scheduleReconnect();
+
+  void failedConnection.close().catch((error: unknown) => {
+    console.error(
+      "Failed to close RabbitMQ connection after channel failure:",
+      error,
+    );
+  });
 }
 
 export async function connectQueue(): Promise<void> {
@@ -42,7 +91,7 @@ export async function connectQueue(): Promise<void> {
   const rabbitmqUrl = process.env.RABBITMQ_URL;
 
   if (!rabbitmqUrl) {
-    throw new Error('RABBITMQ_URL is required in environment variables');
+    throw new Error("RABBITMQ_URL is required in environment variables");
   }
 
   isConnecting = true;
@@ -58,11 +107,11 @@ export async function connectQueue(): Promise<void> {
       try {
         newConnection = await connect(rabbitmqUrl);
 
-        newConnection.on('error', (error: Error) => {
-          console.error('RabbitMQ connection error:', error);
+        newConnection.on("error", (error: Error) => {
+          console.error("RabbitMQ connection error:", error);
         });
 
-        newConnection.on('close', () => {
+        newConnection.on("close", () => {
           if (connection !== newConnection) {
             return;
           }
@@ -71,27 +120,58 @@ export async function connectQueue(): Promise<void> {
           confirmChannel = null;
           consumeChannel = null;
 
-          console.warn('RabbitMQ connection closed');
+          console.warn("RabbitMQ connection closed");
 
           scheduleReconnect();
         });
 
-        newConfirmChannel =
-          await newConnection.createConfirmChannel();
+        newConfirmChannel = await newConnection.createConfirmChannel();
+        newConsumeChannel = await newConnection.createChannel();
 
-        newConsumeChannel =
-          await newConnection.createChannel();
+        await assertTopology(newConfirmChannel, newConsumeChannel);
 
-        await assertTopology(
-          newConfirmChannel,
-          newConsumeChannel,
-        );
+        newConfirmChannel.on("error", (error: Error) => {
+          invalidateConfirmChannel(
+            newConfirmChannel as ConfirmChannel,
+            `channel error: ${error.message}`,
+          );
+        });
+
+        newConfirmChannel.on("close", () => {
+          invalidateConfirmChannel(
+            newConfirmChannel as ConfirmChannel,
+            "channel closed",
+          );
+        });
+
+        newConsumeChannel.on("error", (error: Error) => {
+          invalidateConsumerChannel(
+            newConsumeChannel as Channel,
+            `consumer channel error: ${error.message}`,
+          );
+        });
+
+        newConsumeChannel.on("close", () => {
+          invalidateConsumerChannel(
+            newConsumeChannel as Channel,
+            "consumer channel closed",
+          );
+        });
 
         connection = newConnection;
         confirmChannel = newConfirmChannel;
         consumeChannel = newConsumeChannel;
 
-        console.log('RabbitMQ connected and topology asserted');
+        console.log("RabbitMQ connected and topology asserted");
+
+        // Trigger registered reconnect callbacks
+        for (const cb of reconnectCallbacks) {
+          try {
+            await cb();
+          } catch (err) {
+            console.error("Error executing reconnect callback:", err);
+          }
+        }
 
         return;
       } catch (error) {
@@ -123,10 +203,9 @@ export async function connectQueue(): Promise<void> {
       }
     }
 
-    throw new Error(
-      'Failed to connect to RabbitMQ after 10 attempts',
-      { cause: lastError },
-    );
+    throw new Error("Failed to connect to RabbitMQ after 10 attempts", {
+      cause: lastError,
+    });
   } finally {
     isConnecting = false;
   }
@@ -141,7 +220,7 @@ function scheduleReconnect(): void {
     reconnectTimer = null;
 
     void connectQueue().catch((error: unknown) => {
-      console.error('RabbitMQ reconnection failed:', error);
+      console.error("RabbitMQ reconnection failed:", error);
     });
   }, INITIAL_RECONNECT_DELAY_MS);
 }

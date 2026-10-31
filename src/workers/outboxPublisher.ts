@@ -3,6 +3,7 @@ import { pool } from "../db.js";
 
 let isRunning = false;
 let timer: ReturnType<typeof setTimeout> | null = null;
+const CONFIRMATION_TIMEOUT_MS = 10_000;
 
 export async function startOutboxPublisher(): Promise<void> {
   if (isRunning) return;
@@ -43,12 +44,32 @@ async function publishBatch(): Promise<void> {
         };
 
         await new Promise<void>((resolve, reject) => {
+          let settled = false;
+          const timeout = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            reject(
+              new Error(
+                `RabbitMQ publisher confirmation timed out after ${CONFIRMATION_TIMEOUT_MS}ms`,
+              ),
+            );
+            void channel.close().catch((closeError: unknown) => {
+              console.error(
+                "Failed to close timed-out RabbitMQ confirm channel:",
+                closeError,
+              );
+            });
+          }, CONFIRMATION_TIMEOUT_MS);
+
           channel.publish(
             "paycore.events",
             row.event_type,
             Buffer.from(JSON.stringify(envelope)),
             { persistent: true },
             (err, ok) => {
+              if (settled) return;
+              settled = true;
+              clearTimeout(timeout);
               if (err) reject(err);
               else resolve();
             },
